@@ -1,5 +1,5 @@
 /**
- * @file main.c
+ * @file HomeGuardian.c
  * @brief Sistema de monitoramento ambiental com alertas e interface gráfica
  * @details 
  * - Monitora temperatura e nível de som
@@ -89,38 +89,51 @@ void button_callback(uint gpio, uint32_t events) {
     }
 }
  
- int main() {
-     stdio_init_all();
-     init_hardware();
-     
-     absolute_time_t last_update = get_absolute_time();
-     absolute_time_t last_led_update = get_absolute_time();
-     
-     while(true) {
-         absolute_time_t now = get_absolute_time();
-         
-         // Atualização periódica de sensores e display
-         if(absolute_time_diff_us(last_update, now) >= UPDATE_INTERVAL * 1000) {
-             read_sensors();
-             update_display();
-             last_update = now;
-         }
-         
-         // Atualização da matriz de LEDs (60 FPS)
-         if(absolute_time_diff_us(last_led_update, now) >= 16666) {
-             update_led_matrix();
-             last_led_update = now;
-         }
-         
-         handle_input();
-         
-         if(system_state == MODE_ALERT && !alert_acknowledged) {
-             trigger_alert();
-         }
-         
-         sleep_ms(10);
-     }
- }
+int main() {
+    stdio_init_all();
+    init_hardware();
+    
+    absolute_time_t last_update = get_absolute_time();
+    absolute_time_t last_led_update = get_absolute_time();
+    
+    while(true) {
+        absolute_time_t now = get_absolute_time();
+        
+        // Atualização periódica de sensores e display
+        if(absolute_time_diff_us(last_update, now) >= UPDATE_INTERVAL * 1000) {
+            read_sensors();
+            update_display();
+            last_update = now;
+        }
+        
+        // Atualização da matriz de LEDs (60 FPS)
+        if(absolute_time_diff_us(last_led_update, now) >= 16666) {
+            update_led_matrix();
+            last_led_update = now;
+        }
+        
+        handle_input();
+        
+        // Controle dos LEDs RGB com base no estado do sistema
+        switch(system_state) {
+            case MODE_ALERT:
+                led_control(1, 0, 0); // Vermelho para alerta
+                break;
+            case MODE_CONFIG:
+                led_control(0, 0, 1); // Azul para configuração
+                break;
+            default: // MODE_NORMAL
+                led_control(0, 1, 0); // Verde para normal
+                break;
+        }
+        
+        if(system_state == MODE_ALERT && !alert_acknowledged) {
+            trigger_alert();
+        }
+        
+        sleep_ms(10);
+    }
+}
  
  /**
   * @brief Inicializa todos os componentes de hardware
@@ -222,6 +235,19 @@ void update_display() {
     
     ssd1306_send_data(&oled);
 }
+
+/**
+ * @brief Controla os LEDs RGB
+ * @param r Estado do LED vermelho (0: apagado, 1: aceso)
+ * @param g Estado do LED verde (0: apagado, 1: aceso)
+ * @param b Estado do LED azul (0: apagado, 1: aceso)
+ */
+void led_control(uint8_t r, uint8_t g, uint8_t b) {
+    gpio_put(LED_RED, r);
+    gpio_put(LED_GREEN, g);
+    gpio_put(LED_BLUE, b);
+}
+
  
  /**
   * @brief Processa entradas do joystick e botões
@@ -270,6 +296,7 @@ void update_display() {
     }
 }
  
+
  /**
   * @brief Ativa alertas visuais e sonoros
   */
@@ -277,20 +304,19 @@ void update_display() {
     static bool buzzer_state = false;
     buzzer_state = !buzzer_state;
     pwm_set_gpio_level(BUZZER, buzzer_state ? 512 : 0);
-    // led_control(1, 0, 0); // Comentado, pois não está implementado
+    led_control(1, 0, 0); // Acender LED vermelho durante o alerta
     sleep_ms(100);
-    // led_control(0, 0, 0); // Comentado, pois não está implementado
 }
  
  /**
   * @brief Desativa alertas e retorna ao modo normal
   */
  void clear_alert() {
-     pwm_set_gpio_level(BUZZER, 0);
-     led_control(0, 0, 0);
-     alert_acknowledged = true;
-     system_state = MODE_NORMAL;
- }
+    pwm_set_gpio_level(BUZZER, 0);
+    led_control(0, 0, 0); // Apagar LEDs RGB
+    alert_acknowledged = true;
+    system_state = MODE_NORMAL;
+}
  
  /**
   * @brief Atualiza a matriz de LEDs WS2812

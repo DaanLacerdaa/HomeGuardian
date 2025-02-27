@@ -36,15 +36,16 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(HomeGuardian HomeGuardian.c
-
-ssd1306.c)
+ssd1306.c
+screen.c
+ws2812.c)
 
 pico_set_program_name(HomeGuardian "HomeGuardian")
 pico_set_program_version(HomeGuardian "0.1")
 
 # Modify the below lines to enable/disable output over UART/USB
+pico_enable_stdio_usb(HomeGuardian 1)
 pico_enable_stdio_uart(HomeGuardian 0)
-pico_enable_stdio_usb(HomeGuardian 0)
 
 # Add the standard library to the build
 target_link_libraries(HomeGuardian
