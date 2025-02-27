@@ -43,6 +43,9 @@ ws2812.c)
 pico_set_program_name(HomeGuardian "HomeGuardian")
 pico_set_program_version(HomeGuardian "0.1")
 
+# Gerar cabeçalho para o programa PIO (exemplo para WS2812B)
+pico_generate_pio_header(HomeGuardian ${CMAKE_CURRENT_LIST_DIR}/ws2812.pio)
+
 # Modify the below lines to enable/disable output over UART/USB
 pico_enable_stdio_usb(HomeGuardian 1)
 pico_enable_stdio_uart(HomeGuardian 0)
