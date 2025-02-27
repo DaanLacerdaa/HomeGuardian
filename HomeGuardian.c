@@ -40,6 +40,12 @@
  #define UPDATE_INTERVAL 1000    // Atualizações a cada 1s
  #define DEBOUNCE_DELAY  50      // Delay para debounce
  #define JOYSTICK_DEADZONE 200   // Zona morta do joystick
+
+ // Limites para os limiares
+#define TEMP_MIN 10.0f
+#define TEMP_MAX 50.0f
+#define SOUND_MIN 100
+#define SOUND_MAX 1000
  
  // Estados do sistema
  typedef enum {
@@ -59,8 +65,8 @@
  float current_temp = 0.0;
  uint16_t sound_level = 0;
  uint8_t config_selection = 0;
-float temp_threshold = TEMP_THRESHOLD;  // Limiar configurável
-uint16_t sound_threshold = SOUND_THRESHOLD;  // Limiar configurável
+ float temp_threshold = 40.0f;   // Valor inicial definido diretamente
+ uint16_t sound_threshold = 500; // Valor inicial definido diretamente
  
  // Protótipos de funções
  void init_hardware();
@@ -74,12 +80,14 @@ uint16_t sound_threshold = SOUND_THRESHOLD;  // Limiar configurável
  void set_led_color_hsv(uint8_t led, float h, float s, float v);
  void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float progress);
  
- // Interrupção do botão A
- void button_callback(uint gpio, uint32_t events) {
-     if(gpio == BUTTON_A && system_state == MODE_ALERT) {
-         clear_alert();
-     }
- }
+ // Interrupção dos botões
+void button_callback(uint gpio, uint32_t events) {
+    if (gpio == BUTTON_A && system_state == MODE_ALERT) {
+        clear_alert();
+    } else if (gpio == BUTTON_B && system_state == MODE_CONFIG) {
+        system_state = MODE_NORMAL; // Sair do modo de configuração
+    }
+}
  
  int main() {
      stdio_init_all();
@@ -156,20 +164,23 @@ uint16_t sound_threshold = SOUND_THRESHOLD;  // Limiar configurável
   * @brief Lê e processa dados dos sensores
   */
  void read_sensors() {
+    // Leitura da temperatura
     adc_select_input(TEMP_SENSOR);
     float adc_temp = adc_read() * 3.3f / 4096.0f;
     current_temp = 27.0f - (adc_temp - 0.706f) / 0.001721f;
 
+    // Leitura do nível de som (RMS otimizado)
     adc_select_input(0);
     uint32_t sum = 0;
-    for(int i=0; i<100; i++) {
-        sum += pow(adc_read() - 2048, 2);
+    for (int i = 0; i < 100; i++) {
+        int16_t sample = adc_read() - 2048; // Remove DC offset
+        sum += (int32_t)sample * sample;    // Quadrado direto
         sleep_us(100);
     }
-    sound_level = sqrt(sum/100);
+    sound_level = (uint16_t)sqrt(sum / 100);
 
     // Verificação de limiares ajustáveis
-    if(current_temp > temp_threshold || sound_level > sound_threshold) {
+    if (current_temp > temp_threshold || sound_level > sound_threshold) {
         system_state = MODE_ALERT;
         alert_acknowledged = false;
     }
@@ -220,34 +231,40 @@ void update_display() {
     uint16_t y_pos = adc_read();
     adc_select_input(0); // Eixo X
     uint16_t x_pos = adc_read();
-    
-    if(system_state == MODE_CONFIG) {
+
+    if (system_state == MODE_CONFIG) {
         // Navegação no menu
-        if(y_pos < 2048 - JOYSTICK_DEADZONE) {
+        if (y_pos < 2048 - JOYSTICK_DEADZONE) {
             config_selection = (config_selection + 1) % 2;
             sleep_ms(DEBOUNCE_DELAY);
-        }
-        else if(y_pos > 2048 + JOYSTICK_DEADZONE) {
+        } else if (y_pos > 2048 + JOYSTICK_DEADZONE) {
             config_selection = (config_selection - 1) % 2;
             sleep_ms(DEBOUNCE_DELAY);
         }
-        // Ajuste de limiares
-        else if(x_pos < 2048 - JOYSTICK_DEADZONE) {
-            if(config_selection == 0) temp_threshold -= 0.5;
-            else sound_threshold -= 10;
+        // Ajuste de limiares com limites
+        else if (x_pos < 2048 - JOYSTICK_DEADZONE) {
+            if (config_selection == 0) {
+                temp_threshold -= 0.5f;
+                if (temp_threshold < TEMP_MIN) temp_threshold = TEMP_MIN;
+            } else {
+                sound_threshold -= 10;
+                if (sound_threshold < SOUND_MIN) sound_threshold = SOUND_MIN;
+            }
+            sleep_ms(DEBOUNCE_DELAY);
+        } else if (x_pos > 2048 + JOYSTICK_DEADZONE) {
+            if (config_selection == 0) {
+                temp_threshold += 0.5f;
+                if (temp_threshold > TEMP_MAX) temp_threshold = TEMP_MAX;
+            } else {
+                sound_threshold += 10;
+                if (sound_threshold > SOUND_MAX) sound_threshold = SOUND_MAX;
+            }
             sleep_ms(DEBOUNCE_DELAY);
         }
-        else if(x_pos > 2048 + JOYSTICK_DEADZONE) {
-            if(config_selection == 0) temp_threshold += 0.5;
-            else sound_threshold += 10;
-            sleep_ms(DEBOUNCE_DELAY);
-        }
-    }
-    else {
-        if(y_pos < 1000) {
+    } else {
+        if (y_pos < 1000) {
             system_state = MODE_CONFIG;
-        }
-        else if(x_pos > 3000 && system_state == MODE_ALERT) {
+        } else if (x_pos > 3000 && system_state == MODE_ALERT) {
             clear_alert();
         }
     }
@@ -257,13 +274,13 @@ void update_display() {
   * @brief Ativa alertas visuais e sonoros
   */
  void trigger_alert() {
-     static bool buzzer_state = false;
-     buzzer_state = !buzzer_state;
-     pwm_set_gpio_level(BUZZER, buzzer_state ? 512 : 0);
-     led_control(1, 0, 0);
-     sleep_ms(100);
-     led_control(0, 0, 0);
- }
+    static bool buzzer_state = false;
+    buzzer_state = !buzzer_state;
+    pwm_set_gpio_level(BUZZER, buzzer_state ? 512 : 0);
+    // led_control(1, 0, 0); // Comentado, pois não está implementado
+    sleep_ms(100);
+    // led_control(0, 0, 0); // Comentado, pois não está implementado
+}
  
  /**
   * @brief Desativa alertas e retorna ao modo normal
@@ -279,37 +296,37 @@ void update_display() {
   * @brief Atualiza a matriz de LEDs WS2812
   */
  void update_led_matrix() {
-     static uint8_t hue = 0;
-     
-     switch(system_state) {
-         case MODE_ALERT:
-             // Padrão vermelho piscante
-             for(int i=0; i<NUM_LEDS; i++) {
-                 set_led_color_hsv(i, 0, 1.0, (to_ms_since_boot(get_absolute_time()) % 500 < 250 ? 1.0 : 0.0);
-             }
-             break;
-             
-         case MODE_CONFIG:
-             // Padrão verde estático
-             for(int i=0; i<NUM_LEDS; i++) {
-                 set_led_color_hsv(i, 120, 1.0, 0.2);
-             }
-             break;
-             
-         default:
-             // Animação de onda azul
-             for(int i=0; i<NUM_LEDS; i++) {
-                 float offset = (float)i/NUM_LEDS;
-                 set_led_color_hsv(i, 240, 1.0, fabs(sin((hue/255.0 + offset) * M_PI)));
-             }
-             hue += 2;
-     }
-     
-     // Envia dados para os LEDs
-     for(int i=0; i<NUM_LEDS; i++) {
-         pio_sm_put_blocking(led_pio, led_sm, led_colors[i]);
-     }
- }
+    static uint8_t hue = 0;
+
+    switch (system_state) {
+        case MODE_ALERT:
+            // Padrão vermelho piscante
+            for (int i = 0; i < NUM_LEDS; i++) {
+                set_led_color_hsv(i, 0, 1.0, (to_ms_since_boot(get_absolute_time()) % 500 < 250) ? 1.0 : 0.0);
+            }
+            break;
+
+        case MODE_CONFIG:
+            // Padrão verde estático
+            for (int i = 0; i < NUM_LEDS; i++) {
+                set_led_color_hsv(i, 120, 1.0, 0.2);
+            }
+            break;
+
+        default:
+            // Animação de onda azul
+            for (int i = 0; i < NUM_LEDS; i++) {
+                float offset = (float)i / NUM_LEDS;
+                set_led_color_hsv(i, 240, 1.0, fabs(sin((hue / 255.0 + offset) * M_PI)));
+            }
+            hue += 2;
+    }
+
+    // Envia dados para os LEDs
+    for (int i = 0; i < NUM_LEDS; i++) {
+        pio_sm_put_blocking(led_pio, led_sm, led_colors[i]);
+    }
+}
  
  /**
   * @brief Define a cor de um LED usando HSV
