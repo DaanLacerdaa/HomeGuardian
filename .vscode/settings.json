@@ -39,6 +39,7 @@
   "files.associations": {
     "MLTable": "yaml",
     "*.py": "python",
-    "screen.h": "c"
+    "screen.h": "c",
+    "stdint.h": "c"
   }
 }

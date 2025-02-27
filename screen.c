@@ -1,5 +1,5 @@
 #include "screen.h"
-
+#include <stdint.h>
 /**
  * @brief Desenha um bitmap no display OLED em uma posição específica
  * @param oled Ponteiro para a estrutura do display SSD1306
@@ -73,9 +73,12 @@ void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uin
 }
 
 void ssd1306_fill_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+          if (oled == NULL || x >= oled->width || y >= oled->height || x + w > oled->width || y + h > oled->height) return;
           for (uint8_t i = x; i < x + w; i++) {
               for (uint8_t j = y; j < y + h; j++) {
-                  oled->ram_buffer[j * oled->width + i] = 0xFF; // Preenche com pixels acesos
+                  oled->ram_buffer[j * oled->width + i] = 0xFF;
               }
           }
       }
+
+      

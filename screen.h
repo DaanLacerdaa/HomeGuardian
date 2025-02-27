@@ -3,6 +3,8 @@
 
 #include "ssd1306.h"
 
+#include <stdint.h>
+
 const unsigned char joystick_select [] = {
 	0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfe, 0x7f, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfc, 
 	0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfd, 0x9f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf1, 
@@ -448,5 +450,6 @@ void ssd1306_draw_bitmap(ssd1306_t *oled, const uint8_t *data, uint8_t x, uint8_
 void ssd1306_draw_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float progress);
 void ssd1306_fill_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
 
 #endif // SCREEN_H
