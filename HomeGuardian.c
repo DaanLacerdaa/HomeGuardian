@@ -34,8 +34,8 @@
  #define TEMP_SENSOR     4       // ADC4
  #define LED_MATRIX_PIN  7       // GPIO para matriz de LEDs
  #define NUM_LEDS        25      // 5x5 matrix
- #define WARNING_ICON_WIDTH  32  
- #define WARNING_ICON_HEIGHT 32  
+ #define WARNING_ICON_WIDTH  16  
+ #define WARNING_ICON_HEIGHT 16  
  // Configurações do sistema
 
  #define UPDATE_INTERVAL 1000    // Atualizações a cada 1s
