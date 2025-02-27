@@ -62,6 +62,8 @@ hardware_adc
 pico_stdlib
 hardware_i2c
 hardware_pwm
+hardware_pio
+
         )
 
 pico_add_extra_outputs(HomeGuardian)
