@@ -9,16 +9,43 @@
  * @param w Largura do bitmap em pixels
  * @param h Altura do bitmap em pixels
  */
-void ssd1306_draw_bitmap(ssd1306_t *oled, const uint8_t *data, uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
-    for (uint8_t j = 0; j < h; j++) {
-        for (uint8_t i = 0; i < w; i++) {
-            // Verifica se a posição está dentro dos limites do buffer
-            if (x + i < oled->width && y + j < oled->height) {
-                oled->ram_buffer[(y + j) * oled->width + (x + i)] = data[j * w + i];
-            }
-        }
-    }
-}
+
+ void ssd1306_draw_bitmap(ssd1306_t *ssd, const uint8_t *bitmap, uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+          // Verificar se as coordenadas estão dentro dos limites do display
+          if (x >= ssd->width || y >= ssd->height) {
+              return; // Fora dos limites, não desenha
+          }
+      
+          // Ajustar largura e altura para não exceder o display
+          uint8_t draw_w = (x + w > ssd->width) ? ssd->width - x : w;
+          uint8_t draw_h = (y + h > ssd->height) ? ssd->height - y : h;
+      
+          // Calcular bytes por linha no bitmap (1 bit por pixel, 8 pixels por byte)
+          uint8_t bytes_per_row = (w + 7) / 8;
+      
+          // Iterar sobre as linhas e colunas do bitmap
+          for (uint8_t j = 0; j < draw_h; j++) {
+              for (uint8_t i = 0; i < draw_w; i++) {
+                  // Índice no bitmap
+                  uint16_t bitmap_index = (j * bytes_per_row) + (i / 8);
+                  uint8_t bit_offset = i % 8;
+                  uint8_t bitmap_byte = bitmap[bitmap_index];
+      
+                  // Índice no buffer do display
+                  uint16_t buffer_index = (y + j) * ssd->width + (x + i);
+      
+                  // Verificar o bit no bitmap e atualizar o buffer
+                  if (bitmap_byte & (1 << bit_offset)) {
+                      ssd->ram_buffer[buffer_index] = 0xFF; // Pixel aceso
+                  } else {
+                      ssd->ram_buffer[buffer_index] = 0x00; // Pixel apagado
+                  }
+              }
+          }
+      
+          // Enviar os dados atualizados para o display
+          ssd1306_send_data(ssd);
+      }
 
 /**
  * @brief Desenha as bordas de um retângulo no display OLED
@@ -47,30 +74,7 @@ void ssd1306_draw_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t
     }
 }
 
-/**
- * @brief Desenha uma barra de progresso no display OLED
- * @param oled Ponteiro para a estrutura do display SSD1306
- * @param x Coordenada X inicial
- * @param y Coordenada Y inicial
- * @param width Largura total da barra
- * @param height Altura da barra
- * @param progress Progresso (0.0 a 1.0)
- */
-void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float progress) {
-    // Limita o progresso entre 0.0 e 1.0
-    progress = (progress > 1.0f) ? 1.0f : (progress < 0.0f) ? 0.0f : progress;
-    uint8_t fill_width = (uint8_t)(progress * (width - 2)); // Espaço interno da barra
 
-    // Desenha a moldura da barra
-    ssd1306_draw_rect(oled, x, y, width, height);
-
-    // Preenche a barra de progresso
-    for (uint8_t j = y + 1; j < y + height - 1; j++) {
-        for (uint8_t i = x + 1; i < x + 1 + fill_width && i < x + width - 1; i++) {
-            oled->ram_buffer[j * oled->width + i] = 0xFF; // Preenche com pixels acesos
-        }
-    }
-}
 
 void ssd1306_fill_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
           if (oled == NULL || x >= oled->width || y >= oled->height || x + w > oled->width || y + h > oled->height) return;

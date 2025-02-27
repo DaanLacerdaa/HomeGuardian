@@ -382,17 +382,27 @@ void led_control(uint8_t r, uint8_t g, uint8_t b) {
      
      led_colors[led] = ((uint8_t)(g*255) << 24) | ((uint8_t)(r*255) << 16) | ((uint8_t)(b*255) << 8);
  }
- 
  /**
-  * @brief Desenha uma barra de progresso no display
-  */
- void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float progress) {
-     progress = progress > 1.0 ? 1.0 : progress;
-     uint8_t fill = (uint8_t)(progress * (width-2));
-     
-     // Moldura
-     ssd1306_draw_rect(oled, x, y, width, height);
-     
-     // Preenchimento
-     ssd1306_fill_rect(oled, x+1, y+1, fill, height-2);
- }
+ * @brief Desenha uma barra de progresso no display OLED
+ * @param oled Ponteiro para a estrutura do display SSD1306
+ * @param x Coordenada X inicial
+ * @param y Coordenada Y inicial
+ * @param width Largura total da barra
+ * @param height Altura da barra
+ * @param progress Progresso (0.0 a 1.0)
+ */
+void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float progress) {
+    // Limita o progresso entre 0.0 e 1.0
+    progress = (progress > 1.0f) ? 1.0f : (progress < 0.0f) ? 0.0f : progress;
+    uint8_t fill_width = (uint8_t)(progress * (width - 2)); // Espaço interno da barra
+
+    // Desenha a moldura da barra
+    ssd1306_draw_rect(oled, x, y, width, height);
+
+    // Preenche a barra de progresso
+    for (uint8_t j = y + 1; j < y + height - 1; j++) {
+        for (uint8_t i = x + 1; i < x + 1 + fill_width && i < x + width - 1; i++) {
+            oled->ram_buffer[j * oled->width + i] = 0xFF; // Preenche com pixels acesos
+        }
+    }
+}
