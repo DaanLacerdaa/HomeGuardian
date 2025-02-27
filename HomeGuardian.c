@@ -36,8 +36,7 @@
  #define NUM_LEDS        25      // 5x5 matrix
  
  // Configurações do sistema
- #define TEMP_THRESHOLD  40.0    // Limiar de temperatura
- #define SOUND_THRESHOLD 500     // Limiar de som
+
  #define UPDATE_INTERVAL 1000    // Atualizações a cada 1s
  #define DEBOUNCE_DELAY  50      // Delay para debounce
  #define JOYSTICK_DEADZONE 200   // Zona morta do joystick
@@ -60,6 +59,8 @@
  float current_temp = 0.0;
  uint16_t sound_level = 0;
  uint8_t config_selection = 0;
+float temp_threshold = TEMP_THRESHOLD;  // Limiar configurável
+uint16_t sound_threshold = SOUND_THRESHOLD;  // Limiar configurável
  
  // Protótipos de funções
  void init_hardware();
@@ -155,98 +156,102 @@
   * @brief Lê e processa dados dos sensores
   */
  void read_sensors() {
-     // Temperatura interna
-     adc_select_input(TEMP_SENSOR);
-     float adc_temp = adc_read() * 3.3f / 4096.0f;
-     current_temp = 27.0f - (adc_temp - 0.706f) / 0.001721f;
- 
-     // Nível de som RMS
-     adc_select_input(0);
-     uint32_t sum = 0;
-     for(int i=0; i<100; i++) {
-         sum += pow(adc_read() - 2048, 2); // Remove DC offset
-         sleep_us(100);
-     }
-     sound_level = sqrt(sum/100);
- 
-     // Verificação de limiares
-     if(current_temp > TEMP_THRESHOLD || sound_level > SOUND_THRESHOLD) {
-         system_state = MODE_ALERT;
-         alert_acknowledged = false;
-     }
- }
+    adc_select_input(TEMP_SENSOR);
+    float adc_temp = adc_read() * 3.3f / 4096.0f;
+    current_temp = 27.0f - (adc_temp - 0.706f) / 0.001721f;
+
+    adc_select_input(0);
+    uint32_t sum = 0;
+    for(int i=0; i<100; i++) {
+        sum += pow(adc_read() - 2048, 2);
+        sleep_us(100);
+    }
+    sound_level = sqrt(sum/100);
+
+    // Verificação de limiares ajustáveis
+    if(current_temp > temp_threshold || sound_level > sound_threshold) {
+        system_state = MODE_ALERT;
+        alert_acknowledged = false;
+    }
+}
  
  /**
   * @brief Atualiza a interface do display OLED
   */
- void update_display() {
-     ssd1306_fill(&oled, false);
-     
-     switch(system_state) {
-         case MODE_ALERT:
-             ssd1306_draw_bitmap(&oled, warning_icon, 40, 10);
-             ssd1306_draw_string(&oled, "ALERTA!", 35, 40);
-             break;
-             
-         case MODE_CONFIG:
-             ssd1306_draw_string(&oled, "Modo Configuracao", 10, 10);
-             ssd1306_draw_string(&oled, config_selection == 0 ? "> Temp Limite" : "  Temp Limite", 10, 25);
-             ssd1306_draw_string(&oled, config_selection == 1 ? "> Som Limite" : "  Som Limite", 10, 40);
-             break;
-             
-         default:
-             // Gráfico de temperatura
-             draw_progress_bar(&oled, 10, 10, 100, 8, current_temp/TEMP_THRESHOLD);
-             ssd1306_draw_string(&oled, "Temp:", 10, 20);
-             
-             // Gráfico de som
-             draw_progress_bar(&oled, 10, 35, 100, 8, (float)sound_level/SOUND_THRESHOLD);
-             ssd1306_draw_string(&oled, "Som:", 10, 45);
-             
-             // Valores numéricos
-             char temp_str[20];
-             sprintf(temp_str, "%.1fC", current_temp);
-             ssd1306_draw_string(&oled, temp_str, 80, 20);
-             
-             char sound_str[20];
-             sprintf(sound_str, "%d dB", sound_level);
-             ssd1306_draw_string(&oled, sound_str, 80, 45);
-     }
-     
-     ssd1306_send_data(&oled);
- }
+ 
+void update_display() {
+    ssd1306_fill(&oled, false);
+    
+    switch(system_state) {
+        case MODE_ALERT:
+            ssd1306_draw_bitmap(&oled, warning_icon, 40, 10);
+            ssd1306_draw_string(&oled, "ALERTA!", 35, 40);
+            break;
+            
+        case MODE_CONFIG:
+            ssd1306_draw_string(&oled, "Modo Configuracao", 10, 10);
+            char temp_str[20], sound_str[20];
+            sprintf(temp_str, "> Temp Limite: %.1fC", temp_threshold);
+            sprintf(sound_str, "> Som Limite: %d", sound_threshold);
+            ssd1306_draw_string(&oled, config_selection == 0 ? temp_str : "  Temp Limite", 10, 25);
+            ssd1306_draw_string(&oled, config_selection == 1 ? sound_str : "  Som Limite", 10, 40);
+            break;
+            
+        default:
+            draw_progress_bar(&oled, 10, 10, 100, 8, current_temp/temp_threshold);
+            ssd1306_draw_string(&oled, "Temp:", 10, 20);
+            draw_progress_bar(&oled, 10, 35, 100, 8, (float)sound_level/sound_threshold);
+            ssd1306_draw_string(&oled, "Som:", 10, 45);
+            char temp_str[20], sound_str[20];
+            sprintf(temp_str, "%.1fC", current_temp);
+            sprintf(sound_str, "%d dB", sound_level);
+            ssd1306_draw_string(&oled, temp_str, 80, 20);
+            ssd1306_draw_string(&oled, sound_str, 80, 45);
+    }
+    
+    ssd1306_send_data(&oled);
+}
  
  /**
   * @brief Processa entradas do joystick e botões
   */
  void handle_input() {
-     // Leitura do joystick
-     adc_select_input(1); // Eixo Y
-     uint16_t y_pos = adc_read();
-     adc_select_input(0); // Eixo X
-     uint16_t x_pos = adc_read();
-     
-     if(system_state == MODE_CONFIG) {
-         // Navegação no menu
-         if(y_pos < 2048 - JOYSTICK_DEADZONE) {
-             config_selection = (config_selection + 1) % 2;
-             sleep_ms(DEBOUNCE_DELAY);
-         }
-         else if(y_pos > 2048 + JOYSTICK_DEADZONE) {
-             config_selection = (config_selection - 1) % 2;
-             sleep_ms(DEBOUNCE_DELAY);
-         }
-     }
-     else {
-         // Troca de modos
-         if(y_pos < 1000) {
-             system_state = MODE_CONFIG;
-         }
-         else if(x_pos > 3000 && system_state == MODE_ALERT) {
-             clear_alert();
-         }
-     }
- }
+    adc_select_input(1); // Eixo Y
+    uint16_t y_pos = adc_read();
+    adc_select_input(0); // Eixo X
+    uint16_t x_pos = adc_read();
+    
+    if(system_state == MODE_CONFIG) {
+        // Navegação no menu
+        if(y_pos < 2048 - JOYSTICK_DEADZONE) {
+            config_selection = (config_selection + 1) % 2;
+            sleep_ms(DEBOUNCE_DELAY);
+        }
+        else if(y_pos > 2048 + JOYSTICK_DEADZONE) {
+            config_selection = (config_selection - 1) % 2;
+            sleep_ms(DEBOUNCE_DELAY);
+        }
+        // Ajuste de limiares
+        else if(x_pos < 2048 - JOYSTICK_DEADZONE) {
+            if(config_selection == 0) temp_threshold -= 0.5;
+            else sound_threshold -= 10;
+            sleep_ms(DEBOUNCE_DELAY);
+        }
+        else if(x_pos > 2048 + JOYSTICK_DEADZONE) {
+            if(config_selection == 0) temp_threshold += 0.5;
+            else sound_threshold += 10;
+            sleep_ms(DEBOUNCE_DELAY);
+        }
+    }
+    else {
+        if(y_pos < 1000) {
+            system_state = MODE_CONFIG;
+        }
+        else if(x_pos > 3000 && system_state == MODE_ALERT) {
+            clear_alert();
+        }
+    }
+}
  
  /**
   * @brief Ativa alertas visuais e sonoros
