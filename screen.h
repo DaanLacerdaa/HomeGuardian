@@ -447,4 +447,6 @@ static const uint8_t temp_icon[] = {
 void ssd1306_draw_bitmap(ssd1306_t *oled, const uint8_t *data, uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 void ssd1306_draw_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h);
 void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uint8_t height, float progress);
+void ssd1306_fill_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h);
+
 #endif // SCREEN_H

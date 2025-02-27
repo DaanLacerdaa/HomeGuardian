@@ -14,7 +14,7 @@ void ssd1306_draw_bitmap(ssd1306_t *oled, const uint8_t *data, uint8_t x, uint8_
         for (uint8_t i = 0; i < w; i++) {
             // Verifica se a posição está dentro dos limites do buffer
             if (x + i < oled->width && y + j < oled->height) {
-                oled->buffer[(y + j) * oled->width + (x + i)] = data[j * w + i];
+                oled->ram_buffer[(y + j) * oled->width + (x + i)] = data[j * w + i];
             }
         }
     }
@@ -37,13 +37,13 @@ void ssd1306_draw_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t
 
     // Desenha as bordas horizontais (topo e base)
     for (uint8_t i = x; i <= x_end; i++) {
-        oled->buffer[y * oled->width + i] |= 0x01;           // Topo
-        oled->buffer[y_end * oled->width + i] |= 0x80;       // Base
+        oled->ram_buffer[y * oled->width + i] |= 0x01;           // Topo
+        oled->ram_buffer[y_end * oled->width + i] |= 0x80;       // Base
     }
     // Desenha as bordas verticais (esquerda e direita)
     for (uint8_t j = y; j <= y_end; j++) {
-        oled->buffer[j * oled->width + x] |= 0x01;           // Esquerda
-        oled->buffer[j * oled->width + x_end] |= 0x80;       // Direita
+        oled->ram_buffer[j * oled->width + x] |= 0x01;           // Esquerda
+        oled->ram_buffer[j * oled->width + x_end] |= 0x80;       // Direita
     }
 }
 
@@ -67,7 +67,15 @@ void draw_progress_bar(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t width, uin
     // Preenche a barra de progresso
     for (uint8_t j = y + 1; j < y + height - 1; j++) {
         for (uint8_t i = x + 1; i < x + 1 + fill_width && i < x + width - 1; i++) {
-            oled->buffer[j * oled->width + i] = 0xFF; // Preenche com pixels acesos
+            oled->ram_buffer[j * oled->width + i] = 0xFF; // Preenche com pixels acesos
         }
     }
 }
+
+void ssd1306_fill_rect(ssd1306_t *oled, uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+          for (uint8_t i = x; i < x + w; i++) {
+              for (uint8_t j = y; j < y + h; j++) {
+                  oled->ram_buffer[j * oled->width + i] = 0xFF; // Preenche com pixels acesos
+              }
+          }
+      }

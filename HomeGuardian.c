@@ -34,7 +34,8 @@
  #define TEMP_SENSOR     4       // ADC4
  #define LED_MATRIX_PIN  7       // GPIO para matriz de LEDs
  #define NUM_LEDS        25      // 5x5 matrix
- 
+ #define WARNING_ICON_WIDTH  32  
+ #define WARNING_ICON_HEIGHT 32  
  // Configurações do sistema
 
  #define UPDATE_INTERVAL 1000    // Atualizações a cada 1s
@@ -203,18 +204,18 @@ int main() {
   * @brief Atualiza a interface do display OLED
   */
  
-void update_display() {
+  void update_display() {
+    char temp_str[20], sound_str[20];
     ssd1306_fill(&oled, false);
     
     switch(system_state) {
         case MODE_ALERT:
-            ssd1306_draw_bitmap(&oled, warning_icon, 40, 10);
+            ssd1306_draw_bitmap(&oled, warning_icon, 40, 10, WARNING_ICON_WIDTH, WARNING_ICON_HEIGHT);
             ssd1306_draw_string(&oled, "ALERTA!", 35, 40);
             break;
             
         case MODE_CONFIG:
             ssd1306_draw_string(&oled, "Modo Configuracao", 10, 10);
-            char temp_str[20], sound_str[20];
             sprintf(temp_str, "> Temp Limite: %.1fC", temp_threshold);
             sprintf(sound_str, "> Som Limite: %d", sound_threshold);
             ssd1306_draw_string(&oled, config_selection == 0 ? temp_str : "  Temp Limite", 10, 25);
@@ -226,7 +227,6 @@ void update_display() {
             ssd1306_draw_string(&oled, "Temp:", 10, 20);
             draw_progress_bar(&oled, 10, 35, 100, 8, (float)sound_level/sound_threshold);
             ssd1306_draw_string(&oled, "Som:", 10, 45);
-            char temp_str[20], sound_str[20];
             sprintf(temp_str, "%.1fC", current_temp);
             sprintf(sound_str, "%d dB", sound_level);
             ssd1306_draw_string(&oled, temp_str, 80, 20);
