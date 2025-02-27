@@ -61,7 +61,7 @@ A tabela abaixo apresenta as conexões dos componentes às portas GPIO da placa 
 1. Clone o repositório:
 
    ```bash
-   git clone https://github.com/seu_usuario/monitoramento-ambiental.git
+   git clone https://github.com/DaanLacerdaa/HomeGuardian.git
 
 2. Configure o Pico SDK no ambiente de desenvolvimento.
 3. Compile e carregue o código na BitDogLab usando CMake e um cabo USB.
@@ -72,6 +72,14 @@ A tabela abaixo apresenta as conexões dos componentes às portas GPIO da placa 
 **Modo Alerta**: Ativado quando limiares são excedidos (vermelho piscante nos LEDs).
 **Modo Configuração:** Mova o joystick para cima para entrar; ajuste limiares com o eixo X.
 **Botão A**: Cancela alertas.
+
+## **Demonstração**
+
+[[Link para o vídeo de demonstração no YouTube]] (<https://www.youtube.com/watch?v=v0>)
+
+## **Simulação**
+
+[[Link para a simulação no Wokwi]](https://wokwi.com/projects/424001269230968833)
 
 ## **Licença**
 
